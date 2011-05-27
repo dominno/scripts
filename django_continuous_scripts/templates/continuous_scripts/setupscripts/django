@@ -41,7 +41,8 @@ sudo apt-get -y install git-core build-essential python-dev curl
 # Setup the services
 for serviceScript in `ls $SCRIPT_DIR/service-*`; do
     echo "Running service script $serviceScript"
-    $serviceScript
+    chmod +x $serviceScript
+    sudo $serviceScript
 done
 
 # Setup the user
