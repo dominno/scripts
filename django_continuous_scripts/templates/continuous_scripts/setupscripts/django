@@ -144,10 +144,10 @@ fi
 set +e
 python $MANAGE_COMMAND test $COVERAGE_ARGS --with-xunit --enable-ci --build-secret=$BUILD_SECRET --build-id=$BUILD_ID | tee /tmp/testresults.log
 grep "Destroying test database" /tmp/testresults.log
-RANOK=$?
+FAILED=$?
 set -e
 
-if [ ! $RANOK ]; then
+if [ $FAILED ]; then
     echo "Testing failed to finish"
     exit 3
 fi
