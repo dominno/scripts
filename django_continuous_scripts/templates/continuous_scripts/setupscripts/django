@@ -1,0 +1,157 @@
+#!/bin/bash -xe
+
+COVER_PACKAGE="" # will attempt to auto-detect
+MANAGE_COMMAND="" # will attempt to auto-detect
+
+SCRIPT_DIR="/tmp/cisetup"
+
+### SYSTEM SETUP ###
+
+# Load the default values in
+. ~/.bash_profile
+
+# Let continuous know that we configuring the instance now
+curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/"
+
+# Check we are running as root
+if [ $USER != $CI_USER ]; then
+    echo "Script must be run as the user defined by CI_USER ($CI_USER)" >&2
+    exit 1
+fi
+
+# Set the timezone
+if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
+    echo "Timezone '$TIMEZONE' could not be found"  >&2
+fi
+
+if [ $TIMEZONE ]; then
+    sudo su -c "echo $TIMEZONE > /etc/timezone"
+    sudo dpkg-reconfigure --frontend noninteractive tzdata 
+fi
+
+# Update apt
+sudo apt-get update
+
+# Accept ssh fingerprints
+sudo su -c 'echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config'
+
+# Install some packages
+sudo apt-get -y install git-core build-essential python-dev curl
+
+# Setup the user
+mkdir -p ~/.ssh
+
+### PYTHON SETUP ###
+
+# Setup the SSH agent
+echo "eval \`ssh-agent -s\` > /dev/null" >> ~/.bash_profile
+. ~/.bash_profile
+
+# Get source (git/svn/tar.gz?)
+
+get_from_git() {
+    local GIT_PATH="/tmp/git-$RANDOM"
+    
+    if [ $GIT_PK_FILE ]; then
+        sudo cp $SCRIPT_DIR/$GIT_PK_FILE /home/$CI_USER/.ssh/id_rsa
+        sudo chmod 600 /home/$CI_USER/.ssh/id_rsa
+        sudo chown $CI_USER:$CI_USER /home/$CI_USER/.ssh/id_rsa
+    fi
+    
+    git clone $GIT_URI $GIT_PATH
+    mv $GIT_PATH/.git ~
+    
+    # get the files back
+    git reset --hard HEAD;
+    
+    # get the branch we need
+    (git branch | grep $GIT_BRANCH)  > /dev/null || git branch $GIT_BRANCH origin/$GIT_BRANCH
+    
+    # checkout the branch
+    git checkout $app_branch
+    
+    # pull any updates
+    git pull
+    
+    # setup the submodules
+    git submodule init
+    git submodule update
+    
+    
+}
+
+get_from_git
+
+# pip & virtualenv
+sudo apt-get -y install python-setuptools python-pip
+sudo pip install virtualenv distribute
+
+virtualenv --no-site-packages env_test
+echo ". env_test/bin/activate" >> ~/.bash_profile
+echo "export PIP_REQUIRE_VIRTUALENV=true" >> ~/.bash_profile
+echo "export PIP_RESPECT_VIRTUALENV=true" >> ~/.bash_profile
+
+# setup the python path
+echo "export PYTHONPATH=/home/$CI_USER/lib:\$PYTHONPATH" >> ~/.bash_profile
+
+. ~/.bash_profile
+
+### Load in the .continuousrc file (if present)
+if [ -e ~/.continuousrc ]; then
+    . ~/.continuousrc
+fi
+
+# Setup the requirements if a file was specified
+if [ $PIP_REQUIREMENTS ]; then
+    pip install -E env_test -r $PIP_REQUIREMENTS
+fi
+pip install -E env_test nosexcover -e "git+git://github.com/continuous/nose-continuous.git#egg=nose-continuous"
+
+# Try to auto-detect values where necessary
+if [ ! $MANAGE_COMMAND ]; then
+    MANAGE_COMMAND=`find /home/$CI_USER -maxdepth 3 -name "manage.py" | head -n1`
+    if [ ! $MANAGE_COMMAND ]; then
+        echo "Failed to auto determine the location of the manage command. Set MANAGE_COMMAND in your .continuousrc file." >&2
+        exit 2
+    fi
+fi
+
+if [ ! $COVER_PACKAGE ]; then
+    COVER_PACKAGE=`find /home/$CI_USER -maxdepth 2 -name "__init__.py" | head -n1`
+    if [ ! $COVER_PACKAGE ]; then
+        echo "Failed to auto determine the package to pass to coverage, disabling coverage reporting. Consider setting COVER_PACKAGE in your .continuousrc file." >&2
+    fi
+fi
+
+# Let continuous know that we are going to run the tests now
+curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
+
+### Now run the tests
+
+if [ $COVER_PACKAGE ]; then
+    COVERAGE_ARGS="--with-xcoverage --with-coverage --cover-package=$COVER_PACKAGE"
+fi
+
+# Sometimes this command will die once the tests have executed.
+# More research is needed, but for now we do a manual check
+set +e
+python $MANAGE_COMMAND test $COVERAGE_ARGS --with-xunit --enable-ci --build-secret=$BUILD_SECRET --build-id=$BUILD_ID | tee /tmp/testresults.log
+grep "Destroying test database" /tmp/testresults.log
+RANOK=$?
+set -e
+
+if [ ! $RANOK ]; then
+    echo "Testing failed to finish"
+    exit 3
+fi
+
+# send the XML results to continuous
+if [ -e /home/$CI_USER/nosetests.xml ]; then
+    curl -d @/home/$CI_USER/nosetests.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
+fi
+
+# Let continuous know that we are done
+curl -d "status=done&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
+
+sudo shutdown -c || true
+sudo shutdown -h +3
