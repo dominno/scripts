@@ -1,0 +1,14 @@
+#!/bin/bash -ex
+
+USER="continuous"
+PASS="continuous"
+DB="continuous"
+
+sudo apt-get install mysql-server mysql-client libmysqlclient15-dev
+
+# MySQL should now be running
+
+# Setup premissions
+mysqladmin -u root password $PASS
+mysqladmin -uroot -p$PASS create $DB
+echo "GRANT ALL ON *.* TO $USER@localhost IDENTIFIED BY '$PASS'" | mysql -uroot -p$PASS $DB
