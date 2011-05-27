@@ -13,7 +13,7 @@ SCRIPT_DIR="/tmp/cisetup"
 # Let continuous know that we configuring the instance now
 curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/"
 
-# Check we are running as root
+# Check we are running as the expected user
 if [ $USER != $CI_USER ]; then
     echo "Script must be run as the user defined by CI_USER ($CI_USER)" >&2
     exit 1
@@ -37,6 +37,12 @@ sudo su -c 'echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config'
 
 # Install some packages
 sudo apt-get -y install git-core build-essential python-dev curl
+
+# Setup the services
+for serviceScript in `ls $SCRIPT_DIR/service-*`; do
+    echo "Running service script $serviceScript"
+    $serviceScript
+done
 
 # Setup the user
 mkdir -p ~/.ssh
