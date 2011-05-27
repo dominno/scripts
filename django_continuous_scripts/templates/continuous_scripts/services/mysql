@@ -4,6 +4,7 @@ USER="continuous"
 PASS="continuous"
 DB="continuous"
 
+export DEBIAN_FRONTEND=noninteractive
 apt-get -y install mysql-server mysql-client libmysqlclient15-dev
 
 # MySQL should now be running
