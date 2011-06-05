@@ -1,4 +1,4 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 
 COVER_PACKAGE="" # will attempt to auto-detect
 MANAGE_COMMAND="" # will attempt to auto-detect
@@ -9,6 +9,12 @@ SCRIPT_DIR="/tmp/cisetup"
 
 # Load the default values in
 . ~/.bash_profile
+
+# Simple authentication for remote logger, 
+echo "$BUILD_ID:$BUILD_SECRET:"
+
+# Now we have printed logger info, start with the verbose output
+set -x
 
 # Let continuous know that we configuring the instance now
 curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/"
