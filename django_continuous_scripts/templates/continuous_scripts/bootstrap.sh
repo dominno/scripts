@@ -10,7 +10,7 @@ cd /tmp/cisetup
 apt-get install curl
 
 # Get the setup script, git PKs etc
-curl --insecure "{{ host_protocol }}://{{ host }}/buildservices/build/{{ build.id }}/bundle/?secret={{ build_instance.secret }}" | tar -zx
+curl --insecure "{{ web_host_protocol }}://{{ host }}/buildservices/build/{{ build.id }}/bundle/?secret={{ build_instance.secret }}" | tar -zx
 
 export CI_USER="ci"
 
@@ -28,7 +28,7 @@ GIT_PK_FILE="git.pk"
 GIT_BRANCH="{{ build.branch.name }}"
 BUILD_ID="{{ build.id }}"
 BUILD_SECRET="{{ build.build_instance.secret }}"
-BUNDLE_ROOT_URL="{{ host_protocol }}://{{ host }}"
+BUNDLE_ROOT_URL="{{ web_host_protocol }}://{{ web_host }}"
 ' >> /home/$CI_USER/.bash_profile
 
 chown $CI_USER:$CI_USER /home/$CI_USER/.bash_profile
@@ -37,7 +37,7 @@ chown $CI_USER:$CI_USER /home/$CI_USER/.bash_profile
 chmod 755 /tmp/cisetup/startup_script
 touch /var/log/continuous.log
 chown $CI_USER:$CI_USER /var/log/continuous.log 
-su -c "/tmp/cisetup/startup_script 2>&1 | tee /var/log/continuous.log | nc -w 1 {{host}} 8002" - $CI_USER
+su -c "/tmp/cisetup/startup_script 2>&1 | tee /var/log/continuous.log | nc -w 1 {{ receiver_host }} 8002" - $CI_USER
 
 # Shutdown the server in a few minutes
 # (allows for login if necessary)
