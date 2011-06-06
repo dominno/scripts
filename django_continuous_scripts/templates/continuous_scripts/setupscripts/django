@@ -167,5 +167,8 @@ fi
 # Let continuous know that we are done
 curl -d "status=done&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
 
+# A simple was of ensure that the setup script finished
+touch /tmp/passed
+
 sudo shutdown -c || true
 sudo shutdown -h +3

@@ -38,18 +38,17 @@ chmod 755 /tmp/cisetup/startup_script
 touch /var/log/continuous.log
 chown $CI_USER:$CI_USER /var/log/continuous.log
 
-set +e
+rm -f /tmp/passed
 
 su -c "/tmp/cisetup/startup_script 2>&1 | tee /var/log/continuous.log | nc -w 600 {{ receiver_host }} 8002" - $CI_USER
-STATUS=$?
 
-if [ $STATUS -ne 0 ]; then
+if [ ! -f /tmp/passed ]; then
     echo "Setup script failed"
     curl -d "status=dead&secret={{ build_instance.secret }}" "{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/update-status/"
 fi
 
 # Send the log back to continuous
-curl --data-binary @/var/log/continuous.log "{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/script-output/"
+curl --data-binary @/var/log/continuous.log "{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/script-output/?secret={{ build_instance.secret }}"
 
 # Shutdown the server in a few minutes
 # (allows for login if necessary)
