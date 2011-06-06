@@ -81,7 +81,7 @@ get_from_git() {
     (git branch | grep $GIT_BRANCH)  > /dev/null || git branch $GIT_BRANCH origin/$GIT_BRANCH
     
     # checkout the branch
-    git checkout $app_branch
+    git checkout $GIT_BRANCH
     
     # pull any updates
     git pull
