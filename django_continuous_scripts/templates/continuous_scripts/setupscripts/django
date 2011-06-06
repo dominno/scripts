@@ -160,7 +160,8 @@ fi
 
 # send the XML results to continuous
 if [ -e /home/$CI_USER/nosetests.xml ]; then
-    curl -d @/home/$CI_USER/nosetests.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
+    # Use '--data-binary' to ensure unix new lines don't get ignored
+    curl --data-binary @/home/$CI_USER/nosetests.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
 fi
 
 # Let continuous know that we are done
