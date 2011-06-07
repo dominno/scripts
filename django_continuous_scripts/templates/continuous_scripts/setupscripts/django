@@ -30,7 +30,7 @@ if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
     echo "Timezone '$TIMEZONE' could not be found"  >&2
 fi
 
-if [ $TIMEZONE ]; then
+if [ "$TIMEZONE" ]; then
     sudo su -c "echo $TIMEZONE > /etc/timezone"
     sudo dpkg-reconfigure --frontend noninteractive tzdata 
 fi
@@ -65,7 +65,7 @@ echo "eval \`ssh-agent -s\` > /dev/null" >> ~/.bash_profile
 get_from_git() {
     local GIT_PATH="/tmp/git-$RANDOM"
     
-    if [ $GIT_PK_FILE ]; then
+    if [ "$GIT_PK_FILE" ]; then
         sudo cp $SCRIPT_DIR/$GIT_PK_FILE /home/$CI_USER/.ssh/id_rsa
         sudo chmod 600 /home/$CI_USER/.ssh/id_rsa
         sudo chown $CI_USER:$CI_USER /home/$CI_USER/.ssh/id_rsa
@@ -120,7 +120,7 @@ if [ "$EXTRA_PACKAGES" ]; then
 fi
 
 # Setup the requirements if a file was specified
-if [ $PIP_REQUIREMENTS ]; then
+if [ "$PIP_REQUIREMENTS" ]; then
     pip install -E env_test -r $PIP_REQUIREMENTS
 fi
 pip install -E env_test nosexcover -e "git+git://github.com/continuous/nose-continuous.git#egg=nose-continuous"
@@ -147,10 +147,10 @@ curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/bu
 ### Now run the tests
 
 EXTRA_ARGS=""
-if [ $COVER_PACKAGE ]; then
+if [ "$COVER_PACKAGE" ]; then
     EXTRA_ARGS="$EXTRA_ARGS --with-xcoverage --with-coverage --cover-package=$COVER_PACKAGE"
 fi
-if [ $DJANGO_SETTINGS_MODULE ]; then
+if [ "$DJANGO_SETTINGS_MODULE" ]; then
     EXTRA_ARGS="$EXTRA_ARGS --settings=$DJANGO_SETTINGS_MODULE"
 fi
 
