@@ -146,14 +146,18 @@ curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/bu
 
 ### Now run the tests
 
+EXTRA_ARGS=""
 if [ $COVER_PACKAGE ]; then
-    COVERAGE_ARGS="--with-xcoverage --with-coverage --cover-package=$COVER_PACKAGE"
+    EXTRA_ARGS="$EXTRA_ARGS --with-xcoverage --with-coverage --cover-package=$COVER_PACKAGE"
+fi
+if [ $DJANGO_SETTINGS_MODULE ]; then
+    EXTRA_ARGS="$EXTRA_ARGS --settings=$DJANGO_SETTINGS_MODULE"
 fi
 
 # Sometimes this command will die once the tests have executed.
 # More research is needed, but for now we do a manual check
 set +e
-python $MANAGE_COMMAND test $COVERAGE_ARGS --with-xunit --enable-ci --build-secret=$BUILD_SECRET --build-id=$BUILD_ID | tee /tmp/testresults.log
+python $MANAGE_COMMAND test $EXTRA_ARGS --with-xunit --enable-ci --build-secret=$BUILD_SECRET --build-id=$BUILD_ID | tee /tmp/testresults.log
 grep "Destroying test database" /tmp/testresults.log
 STATUS=$?
 set -e

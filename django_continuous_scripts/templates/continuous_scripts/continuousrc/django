@@ -14,14 +14,17 @@ PIP_REQUIREMENTS=""
 # The Python package which code coverage statistics should be limited to
 # (Will attempt to auto-detect if blank)
 # Example: "myproj.myapp"
-
 COVER_PACKAGE=""
 
 # The path to the django manage.py command
 # (Will attempt to auto-detect if blank)
 # Example: "./manage.py"
-
 MANAGE_COMMAND=""
+
+# Tells Django where to find the setting file to be used for this build
+# See: https://docs.djangoproject.com/en/dev/topics/settings/#designating-the-settings
+# Example: "myapp.settings_test"
+DJANGO_SETTINGS_MODULE=""
 
 # A space separated list of extra packages to be installed. 
 # This will be passed to the system package manager, normally apt-get.
