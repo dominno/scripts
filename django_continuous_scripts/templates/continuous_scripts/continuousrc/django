@@ -8,17 +8,22 @@
 
 # The pip reqirements file relative to your project root directory.
 # (Optional, but most likely needed for all but the simplest projects)
-
-PIP_REQUIREMENTS="requirements.txt"
+# Example: "requirements.txt"
+PIP_REQUIREMENTS=""
 
 # The Python package which code coverage statistics should be limited to
 # (Will attempt to auto-detect if blank)
-# Example: myproj.myapp
+# Example: "myproj.myapp"
 
 COVER_PACKAGE=""
 
 # The path to the django manage.py command
 # (Will attempt to auto-detect if blank)
-# Example: ./manage.py
+# Example: "./manage.py"
 
 MANAGE_COMMAND=""
+
+# A space separated list of extra packages to be installed. 
+# This will be passed to the system package manager, normally apt-get.
+# Example: "subversion libjpeg-dev"
+EXTRA_PACKAGES=""

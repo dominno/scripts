@@ -114,6 +114,11 @@ if [ -e ~/.continuousrc ]; then
     . ~/.continuousrc
 fi
 
+# Install any extra packages that are required
+if [ $EXTRA_PACKAGES ]; then
+    sudo apt-get -y install $EXTRA_PACKAGES
+fi
+
 # Setup the requirements if a file was specified
 if [ $PIP_REQUIREMENTS ]; then
     pip install -E env_test -r $PIP_REQUIREMENTS
