@@ -123,7 +123,9 @@ fi
 if [ "$PIP_REQUIREMENTS" ]; then
     pip install -E env_test -r $PIP_REQUIREMENTS
 fi
-pip install -E env_test nosexcover -e "git+git://github.com/continuous/nose-continuous.git#egg=nose-continuous"
+
+# Make sure unittest-continuous is installed
+pip install -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
 
 # Try to auto-detect values where necessary
 if [ ! $MANAGE_COMMAND ]; then
@@ -146,31 +148,25 @@ curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/bu
 
 ### Now run the tests
 
-EXTRA_ARGS=""
-if [ "$COVER_PACKAGE" ]; then
-    EXTRA_ARGS="$EXTRA_ARGS --with-xcoverage --with-coverage --cover-package=$COVER_PACKAGE"
-fi
-if [ "$DJANGO_SETTINGS_MODULE" ]; then
-    EXTRA_ARGS="$EXTRA_ARGS --settings=$DJANGO_SETTINGS_MODULE"
+# Find a place to install our setup code
+if [ "$INSTALL_TO" ]; then
+    i=0
+    INSTALL_TO=""
+    while [[ ! $INSTALL_TO && i -lt 5 ]]; do
+        INSTALL_TO=`find /home/$CI_USER -maxdepth $i -name "__init__.py" | head -1`
+        let i=$i+1
+    done
 fi
 
-# Sometimes this command will die once the tests have executed.
-# More research is needed, but for now we do a manual check
-set +e
-python $MANAGE_COMMAND test $EXTRA_ARGS --with-xunit --enable-ci --build-secret=$BUILD_SECRET --build-id=$BUILD_ID | tee /tmp/testresults.log
-grep "Destroying test database" /tmp/testresults.log
-STATUS=$?
-set -e
+# Install the setup code
+echo "import unittest_continuous; unittest_continuous.setup()" >> $INSTALL_TO
 
-if [ $STATUS -ne 0 ]; then
-    echo "Testing failed to finish"
-    exit 3
-fi
+python $MANAGE_COMMAND test | tee /tmp/testresults.log
 
 # send the XML results to continuous
 if [ -e /home/$CI_USER/nosetests.xml ]; then
     # Use '--data-binary' to ensure unix new lines don't get ignored
-    curl --data-binary @/home/$CI_USER/nosetests.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
+    curl --data-binary @/home/$CI_USER/results.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
 fi
 
 # Let continuous know that we are done
