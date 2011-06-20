@@ -97,7 +97,7 @@ get_from_git
 
 # pip & virtualenv
 sudo apt-get -y install python-setuptools python-pip
-sudo pip install virtualenv distribute
+sudo pip install -q virtualenv distribute
 
 virtualenv --no-site-packages env_test
 echo ". env_test/bin/activate" >> ~/.bash_profile
@@ -121,11 +121,11 @@ fi
 
 # Setup the requirements if a file was specified
 if [ -e "$PIP_REQUIREMENTS" ]; then
-    pip install -E env_test -r $PIP_REQUIREMENTS
+    pip install -q -E env_test -r $PIP_REQUIREMENTS
 fi
 
 # Make sure unittest-continuous is installed
-pip install -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
+pip install -q -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
 
 # How are we going to run our tests?
 if [ ! "$TEST_COMMAND" ]; then
