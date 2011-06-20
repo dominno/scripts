@@ -36,13 +36,13 @@ if [ "$TIMEZONE" ]; then
 fi
 
 # Update apt
-sudo apt-get update
+sudo apt-get -q update
 
 # Accept ssh fingerprints
 sudo su -c 'echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config'
 
 # Install some packages
-sudo apt-get -y install git-core build-essential python-dev curl
+sudo apt-get -q install git-core build-essential python-dev curl
 
 # Setup the services
 for serviceScript in `ls $SCRIPT_DIR/service-*`; do
@@ -96,7 +96,7 @@ get_from_git() {
 get_from_git
 
 # pip & virtualenv
-sudo apt-get -y install python-setuptools python-pip
+sudo apt-get -q install python-setuptools python-pip
 sudo pip install -q virtualenv distribute
 
 virtualenv --no-site-packages env_test
@@ -116,7 +116,7 @@ fi
 
 # Install any extra packages that are required
 if [ "$EXTRA_PACKAGES" ]; then
-    sudo apt-get -y install $EXTRA_PACKAGES
+    sudo apt-get -q install $EXTRA_PACKAGES
 fi
 
 # Setup the requirements if a file was specified
