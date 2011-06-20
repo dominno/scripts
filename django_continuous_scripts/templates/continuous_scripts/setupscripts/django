@@ -124,6 +124,11 @@ if [ -e "$PIP_REQUIREMENTS" ]; then
     pip install -q -E env_test -r $PIP_REQUIREMENTS
 fi
 
+# Run pip install if setup.py is present
+if [ -e "/home/$CI_USER/setup.py" ]; then
+    pip install -q -E env_test "/home/$CI_USER"
+fi
+
 # Make sure unittest-continuous is installed
 pip install -q -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
 
