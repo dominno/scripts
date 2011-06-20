@@ -149,7 +149,7 @@ curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/bu
 ### Now run the tests
 
 # Find a place to install our setup code
-if [ "$INSTALL_TO" ]; then
+if [ ! "$INSTALL_TO" ]; then
     i=0
     INSTALL_TO=""
     while [[ ! $INSTALL_TO && i -lt 5 ]]; do
@@ -159,12 +159,27 @@ if [ "$INSTALL_TO" ]; then
 fi
 
 # Install the setup code
+echo "" >> $INSTALL_TO
 echo "import unittest_continuous; unittest_continuous.setup()" >> $INSTALL_TO
 
-python $MANAGE_COMMAND test | tee /tmp/testresults.log
+# Now get a list of apps to test
+MANAGE_COMMAND_DIR=`dirname $MANAGE_COMMAND`
+if [ ! "$APPS" ]; then
+    i=0
+    APPS=""
+    while [[ ! $APPS && i -lt 5 ]]; do
+        APPS=`find $MANAGE_COMMAND_DIR -maxdepth $i -name "models.py" | rev | cut -d/ -f2 | rev | tr "\\n" " "`
+        let i=$i+1
+    done
+fi
+
+# Run the tests!
+export BUILD_ID=$BUILD_ID
+export BUILD_SECRET=$BUILD_SECRET
+python $MANAGE_COMMAND test $APPS | tee /tmp/testresults.log
 
 # send the XML results to continuous
-if [ -e /home/$CI_USER/nosetests.xml ]; then
+if [ -e "/home/$CI_USER/results.xml" ]; then
     # Use '--data-binary' to ensure unix new lines don't get ignored
     curl --data-binary @/home/$CI_USER/results.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
 fi
