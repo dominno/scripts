@@ -134,7 +134,10 @@ pip install -q -E env_test -e "git+git://github.com/continuous/unittest-continuo
 
 # How are we going to run our tests?
 if [ ! "$TEST_COMMAND" ]; then
-    TEST_COMMAND=`find /home/$CI_USER find . -maxdepth 3 \( -iregex '.*/tests/.*tests.py' -or -iregex '.*/run_?test.*' \) -and -type f | head -n1`
+    TEST_COMMAND=`find /home/$CI_USER . -maxdepth 3 \( -iregex '.*/tests/.*tests.py' -or -iregex '.*/run_?test.*' \) -and -type f | head -n1`
+    if [ ! -x "$TEST_COMMAND" ]; then
+        TEST_COMMAND="python $TEST_COMMAND"
+    fi
 fi
 
 # Let's see if we have a manage.py command (for Django projects)
@@ -148,7 +151,7 @@ if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
 fi
 
 if [ ! "$TEST_COMMAND" ]; then
-    TEST_COMMAND="$MANAGE_COMMAND test"
+    TEST_COMMAND="python $MANAGE_COMMAND test"
 fi
 
 ### Now run the tests
@@ -186,7 +189,7 @@ curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/bu
 # Run the tests!
 export BUILD_ID=$BUILD_ID
 export BUILD_SECRET=$BUILD_SECRET
-python $TEST_COMMAND $APPS | tee /tmp/testresults.log
+$TEST_COMMAND $APPS | tee /tmp/testresults.log
 
 # send the XML results to continuous
 if [ -e "/home/$CI_USER/results.xml" ]; then
