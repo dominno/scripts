@@ -127,24 +127,24 @@ fi
 # Make sure unittest-continuous is installed
 pip install -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
 
-# Try to auto-detect values where necessary
-if [ ! $MANAGE_COMMAND ]; then
+# How are we going to run our tests?
+if [ ! "$TEST_COMMAND" ]; then
+    TEST_COMMAND=`find /home/$CI_USER find . -maxdepth 3 -iregex '.*/run_?tests?' | head -n1`
+fi
+
+# Let's see if we have a manage.py command (for Django projects)
+if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
     MANAGE_COMMAND=`find /home/$CI_USER -maxdepth 3 -name "manage.py" | head -n1`
-    if [ ! $MANAGE_COMMAND ]; then
-        echo "Failed to auto determine the location of the manage command. Set MANAGE_COMMAND in your .continuousrc file." >&2
-        exit 2
-    fi
 fi
 
-if [ ! $COVER_PACKAGE ]; then
-    COVER_PACKAGE=`find /home/$CI_USER -maxdepth 2 -name "__init__.py" | head -n1`
-    if [ ! $COVER_PACKAGE ]; then
-        echo "Failed to auto determine the package to pass to coverage, disabling coverage reporting. Consider setting COVER_PACKAGE in your .continuousrc file." >&2
-    fi
+if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
+    echo "Could not auto-determine a value for MANAGE_COMMAND or TEST_COMMAND. Consider setting it manually in your .continuousrc file."
+    exit 2
 fi
 
-# Let continuous know that we are going to run the tests now
-curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
+if [ ! "$TEST_COMMAND" ]; then
+    TEST_COMMAND="$MANAGE_COMMAND test"
+fi
 
 ### Now run the tests
 
@@ -162,21 +162,26 @@ fi
 echo "" >> $INSTALL_TO
 echo "import unittest_continuous; unittest_continuous.setup()" >> $INSTALL_TO
 
-# Now get a list of apps to test
-MANAGE_COMMAND_DIR=`dirname $MANAGE_COMMAND`
-if [ ! "$APPS" ]; then
-    i=0
-    APPS=""
-    while [[ ! $APPS && i -lt 5 ]]; do
-        APPS=`find $MANAGE_COMMAND_DIR -maxdepth $i -name "models.py" | rev | cut -d/ -f2 | rev | tr "\\n" " "`
-        let i=$i+1
-    done
+# Now get a list of apps to test (if we are using Django's manage command)
+if [ "$MANAGE_COMMAND" ]; then
+    MANAGE_COMMAND_DIR=`dirname $MANAGE_COMMAND`
+    if [ ! "$APPS" ]; then
+        i=0
+        APPS=""
+        while [[ ! $APPS && i -lt 5 ]]; do
+            APPS=`find $MANAGE_COMMAND_DIR -maxdepth $i -name "models.py" | rev | cut -d/ -f2 | rev | tr "\\n" " "`
+            let i=$i+1
+        done
+    fi
 fi
+
+# Let continuous know that we are going to run the tests now
+curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
 
 # Run the tests!
 export BUILD_ID=$BUILD_ID
 export BUILD_SECRET=$BUILD_SECRET
-python $MANAGE_COMMAND test $APPS | tee /tmp/testresults.log
+python $TEST_COMMAND $APPS | tee /tmp/testresults.log
 
 # send the XML results to continuous
 if [ -e "/home/$CI_USER/results.xml" ]; then
