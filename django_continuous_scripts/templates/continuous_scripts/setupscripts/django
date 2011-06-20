@@ -120,7 +120,7 @@ if [ "$EXTRA_PACKAGES" ]; then
 fi
 
 # Setup the requirements if a file was specified
-if [ "$PIP_REQUIREMENTS" ]; then
+if [ -e "$PIP_REQUIREMENTS" ]; then
     pip install -E env_test -r $PIP_REQUIREMENTS
 fi
 
