@@ -116,21 +116,21 @@ fi
 
 # Install any extra packages that are required
 if [ "$EXTRA_PACKAGES" ]; then
-    sudo apt-get -y -q install $EXTRA_PACKAGES
+    sudo apt-get -y install $EXTRA_PACKAGES
 fi
 
 # Setup the requirements if a file was specified
 if [ -e "$PIP_REQUIREMENTS" ]; then
-    pip install -q -E env_test -r $PIP_REQUIREMENTS
+    pip install -E env_test -r $PIP_REQUIREMENTS
 fi
 
 # Run pip install if setup.py is present
 if [ -e "/home/$CI_USER/setup.py" ]; then
-    pip install -q -E env_test "/home/$CI_USER"
+    pip install -E env_test "/home/$CI_USER"
 fi
 
 # Make sure unittest-continuous is installed
-pip install -q -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
+pip install -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
 
 # How are we going to run our tests?
 if [ ! "$TEST_COMMAND" ]; then
