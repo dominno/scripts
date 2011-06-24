@@ -189,7 +189,10 @@ curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/bu
 # Run the tests!
 export BUILD_ID=$BUILD_ID
 export BUILD_SECRET=$BUILD_SECRET
-$TEST_COMMAND $APPS | tee /tmp/testresults.log
+if [ "$DJANGO_SETTINGS_MODULE" ]; then
+	SETTINGS="--settings $DJANGO_SETTINGS_MODULE"
+fi
+$TEST_COMMAND $SETTINGS $APPS | tee /tmp/testresults.log
 
 # send the XML results to continuous
 if [ -e "/home/$CI_USER/results.xml" ]; then
