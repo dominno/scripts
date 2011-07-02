@@ -2,6 +2,8 @@
 
 SCRIPT_DIR="/tmp/cisetup"
 
+PIP_REQUIREMENTS="requirements.pip" # A sensible default
+
 ### SYSTEM SETUP ###
 
 # Load the default values in

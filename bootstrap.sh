@@ -22,7 +22,6 @@ echo "$CI_USER  ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 # within your project's root directory.
 echo 'TIMEZONE="UTC"
 CI_USER="ci"
-PIP_REQUIREMENTS="requirements.pip"
 GIT_URI="{{ build.project.git_uri }}"
 GIT_PK_FILE="git.pk"
 GIT_BRANCH="{{ build.branch.name }}"
