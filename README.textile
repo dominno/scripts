@@ -1,6 +1,6 @@
 h1. Continuous.io build scripts & services
 
-For further documentation see: "http://dev3:8000/docs/contributing/":http://dev3:8000/docs/contributing/
+For further documentation see: "https://continuous.io/docs/contributing/":https://continuous.io/docs/contributing/
 
 This repository contains the scripts responsible for building and running Continuous build servers.
 
