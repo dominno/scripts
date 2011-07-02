@@ -18,7 +18,7 @@ echo "REMOVE THIS LINE ONCE CUSTOMISATION IS COMPLETE"; exit 9;
 # 
 # 
 # Very few things here are actually required, and those that are are clearly 
-# marked.
+# marked. Root access is available via the 'sudo' command.
 
 # The directory where the bootstrap has downloaded files to
 # (including where this script is located)
