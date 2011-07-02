@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-COVER_PACKAGE="" # will attempt to auto-detect
-MANAGE_COMMAND="" # will attempt to auto-detect
-
 SCRIPT_DIR="/tmp/cisetup"
 
 ### SYSTEM SETUP ###
