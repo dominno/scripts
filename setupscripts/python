@@ -1,8 +1,37 @@
 #!/bin/bash -e
 
+# The following variables are available to you
+# (values are examples only)
+# 
+# TIMEZONE="UTC"                                        # The timezone this server should be given
+# CI_USER="ci"                                          # The user to setup and run the tests as 
+#                                                       # (although you are free to ignore this)
+# 
+# GIT_URI="git://github.com/andymccurdy/redis-py.git"   # The Git URL for this project
+# GIT_PK_FILE="git.pk"                                  # The Git PK file location
+# GIT_BRANCH="master"                                   # The Git branch to use
+# BUILD_ID="123"                                        # The continuous build ID
+# BUILD_SECRET="aaabbbcccdddeeefff111222333"            # The continuous build secret
+# BUNDLE_ROOT_URL="https://continuous.io                # The root URL to perform callbacks to
+# 
+# 
+# Very few things here are actually required, and those that are are clearly 
+# marked. Root access is available via the 'sudo' command.
+# 
+# You can customise variables within this script by setting up a .continuousrc file:
+# 
+# https://continuous.io/docs/customising/
+
+
+
+# The directory where the bootstrap has downloaded files to
+# (including where this script is located)
 SCRIPT_DIR="/tmp/cisetup"
 
-PIP_REQUIREMENTS="requirements.pip" # A sensible default
+# A sensible default location in which to look for any pip requirements
+PIP_REQUIREMENTS="requirements.pip"
+
+
 
 ### SYSTEM SETUP ###
 
