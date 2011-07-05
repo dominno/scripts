@@ -144,6 +144,12 @@ if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
     MANAGE_COMMAND=`find /home/$CI_USER -maxdepth 3 -name "manage.py" | head -n1`
 fi
 
+# Let's see if setuptools has a chance of running these tests
+if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" && -f setup.py && `grep "test_suite" setup.py` ]]; then
+    TEST_COMMAND="python /home/$CI_USER/setup.py test"
+    INSTALL_TO="/home/$CI_USER/setup.py"
+fi
+
 if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
     echo "Could not auto-determine a value for MANAGE_COMMAND or TEST_COMMAND. Consider setting it manually in your .continuousrc file."
     exit 2
@@ -165,9 +171,15 @@ if [ ! "$INSTALL_TO" ]; then
     done
 fi
 
+install_setup_code() {
+    code="import unittest_continuous; unittest_continuous.setup()"
+    tmpfile="/tmp/$RANDOM"
+    awk -v text="$code" '!/^#/ && !p {print text; p=1} 1' $INSTALL_TO > $tmpfile
+    mv $tmpfile $INSTALL_TO
+}
+
 # Install the setup code
-echo "" >> $INSTALL_TO
-echo "import unittest_continuous; unittest_continuous.setup()" >> $INSTALL_TO
+install_setup_code
 
 # Now get a list of apps to test (if we are using Django's manage command)
 if [ "$MANAGE_COMMAND" ]; then
