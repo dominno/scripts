@@ -19,10 +19,18 @@ echo "REMOVE THIS LINE ONCE CUSTOMISATION IS COMPLETE"; exit 9;
 # 
 # Very few things here are actually required, and those that are are clearly 
 # marked. Root access is available via the 'sudo' command.
+# 
+# You can customise variables within this script by setting up a .continuousrc file:
+# 
+# https://continuous.io/docs/customising/
+
+
 
 # The directory where the bootstrap has downloaded files to
 # (including where this script is located)
 SCRIPT_DIR="/tmp/cisetup"
+
+
 
 ####################
 ### SYSTEM SETUP ###
