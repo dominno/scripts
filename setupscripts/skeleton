@@ -58,13 +58,13 @@ if [ $USER != $CI_USER ]; then
 fi
 
 # Set the timezone
-if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
-    echo "[WARNING] Timezone '$TIMEZONE' could not be found"  >&2
-fi
-
 if [ "$TIMEZONE" ]; then
-    sudo su -c "echo $TIMEZONE > /etc/timezone"
-    sudo dpkg-reconfigure --frontend noninteractive tzdata 
+    if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
+        echo "[WARNING] Timezone '$TIMEZONE' could not be found. Timezone will not be set."  >&2
+    else
+        sudo su -c "echo $TIMEZONE > /etc/timezone"
+        sudo dpkg-reconfigure --frontend noninteractive tzdata 
+    fi
 fi
 
 # Update apt
