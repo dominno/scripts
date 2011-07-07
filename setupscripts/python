@@ -47,15 +47,17 @@ set -x
 # Let continuous know that we configuring the instance now
 curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/"
 
+echo "[INFO] The server is being configured"
+
 # Check we are running as the expected user
 if [ $USER != $CI_USER ]; then
-    echo "Script must be run as the user defined by CI_USER ($CI_USER)" >&2
+    echo "[ERROR] Script must be run as the user defined by CI_USER ($CI_USER)" >&2
     exit 1
 fi
 
 # Set the timezone
 if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
-    echo "Timezone '$TIMEZONE' could not be found"  >&2
+    echo "[WARNING] Timezone '$TIMEZONE' could not be found"  >&2
 fi
 
 if [ "$TIMEZONE" ]; then
@@ -83,6 +85,8 @@ done
 mkdir -p ~/.ssh
 
 ### PYTHON SETUP ###
+
+echo "[INFO] Your project is now being loaded from source control"
 
 # Setup the SSH agent
 echo "eval \`ssh-agent -s\` > /dev/null" >> ~/.bash_profile
@@ -123,6 +127,8 @@ get_from_git() {
 
 get_from_git
 
+echo "[INFO] The Python environment is now being configured"
+
 # pip & virtualenv
 sudo apt-get -y -q install python-setuptools python-pip
 sudo pip install -q virtualenv distribute
@@ -139,7 +145,10 @@ echo "export PYTHONPATH=/home/$CI_USER/lib:\$PYTHONPATH" >> ~/.bash_profile
 
 ### Load in the .continuousrc file (if present)
 if [ -e ~/.continuousrc ]; then
+    echo "[INFO] A .continuousrc file was found, loading it in"
     . ~/.continuousrc
+else
+    echo "[INFO] No .continuousrc file was found, so it will not be loaded (this is okay!)"
 fi
 
 # Install any extra packages that are required
@@ -159,6 +168,8 @@ fi
 
 # Make sure unittest-continuous is installed
 pip install -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
+
+echo "[INFO] Trying to determine how best to run your tests"
 
 # How are we going to run our tests?
 if [ ! "$TEST_COMMAND" ]; then
@@ -180,13 +191,16 @@ if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" && -f setup.py && `grep "test_sui
 fi
 
 if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
-    echo "Could not auto-determine a value for MANAGE_COMMAND or TEST_COMMAND. Consider setting it manually in your .continuousrc file."
+    echo "[ERROR] Could not auto-determine a value for MANAGE_COMMAND or TEST_COMMAND. Consider setting it manually in your .continuousrc file."
     exit 2
 fi
 
 if [ ! "$TEST_COMMAND" ]; then
+    echo "[INFO] A manage.py file was found at '$MANAGE_COMMAND'. Assuming this is a Django project."
     TEST_COMMAND="python $MANAGE_COMMAND test"
 fi
+
+echo "[INFO] Running your test with the command: $TEST_COMMAND"
 
 ### Now run the tests
 
@@ -207,6 +221,8 @@ install_setup_code() {
     mv $tmpfile $INSTALL_TO
 }
 
+echo "[INFO] Installing the Continuous testing code to $INSTALL_TO"
+
 # Install the setup code
 install_setup_code
 
@@ -221,6 +237,8 @@ if [ "$MANAGE_COMMAND" ]; then
             let i=$i+1
         done
     fi
+    
+    echo "[INFO] As this is a Django project, we will tests these apps: $APPS"
 fi
 
 # Let continuous know that we are going to run the tests now
@@ -232,12 +250,22 @@ export BUILD_SECRET=$BUILD_SECRET
 if [ "$DJANGO_SETTINGS_MODULE" ]; then
 	SETTINGS="--settings $DJANGO_SETTINGS_MODULE"
 fi
-$TEST_COMMAND $SETTINGS $APPS | tee /tmp/testresults.log
+RUN="$TEST_COMMAND $SETTINGS $APPS"
+
+echo "[INFO] Tests are now being run with the command: $RUN"
+
+$RUN | tee /tmp/testresults.log
+
+echo "[INFO] Tests have been run"
 
 # send the XML results to continuous
 if [ -e "/home/$CI_USER/results.xml" ]; then
+    echo "[INFO] Results found in /home/$CI_USER/results.xml. Send the data to Continuous now."
+    
     # Use '--data-binary' to ensure unix new lines don't get ignored
     curl --data-binary @/home/$CI_USER/results.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
+else
+    echo "[ERROR] No results could be found in /home/$CI_USER/results.xml. Nothing to send back to Continuous."
 fi
 
 # Let continuous know that we are done
@@ -245,6 +273,8 @@ curl -d "status=done&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build
 
 # A simple was of ensure that the setup script finished
 touch /tmp/passed
+
+echo "[INFO] Complete!"
 
 sudo shutdown -c || true
 sudo shutdown -h +3
