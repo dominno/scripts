@@ -47,7 +47,7 @@ set -x
 # Let continuous know that we configuring the instance now
 curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/"
 
-echo "[INFO] The server is being configured"
+echo "[INFO] The server is being configured (`lsb_release -sd` `lsb_release -sc` `uname -m`)"
 
 # Check we are running as the expected user
 if [ $USER != $CI_USER ]; then

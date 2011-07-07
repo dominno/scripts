@@ -36,7 +36,7 @@ SCRIPT_DIR="/tmp/cisetup"
 ### SYSTEM SETUP ###
 ####################
 
-echo "[INFO] The server is being configured"
+echo "[INFO] The server is being configured (`lsb_release -sd` `lsb_release -sc` `uname -m`)"
 
 # REQUIRED: Load the default values in
 . ~/.bash_profile
