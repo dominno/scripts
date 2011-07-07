@@ -259,13 +259,14 @@ $RUN | tee /tmp/testresults.log
 echo "[INFO] Tests have been run"
 
 # send the XML results to continuous
-if [ -e "/home/$CI_USER/results.xml" ]; then
+if [ -s "/home/$CI_USER/results.xml" ]; then
     echo "[INFO] Results found in /home/$CI_USER/results.xml. Send the data to Continuous now."
     
     # Use '--data-binary' to ensure unix new lines don't get ignored
     curl --data-binary @/home/$CI_USER/results.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
 else
-    echo "[ERROR] No results could be found in /home/$CI_USER/results.xml. Nothing to send back to Continuous."
+    echo "[ERROR] No results found at /home/$CI_USER/results.xml. Nothing to send back to Continuous."
+    exit 3
 fi
 
 # Let continuous know that we are done
