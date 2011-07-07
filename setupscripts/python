@@ -275,6 +275,3 @@ curl -d "status=done&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build
 touch /tmp/passed
 
 echo "[INFO] Complete!"
-
-sudo shutdown -c || true
-sudo shutdown -h +3
