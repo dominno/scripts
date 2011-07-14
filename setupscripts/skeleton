@@ -19,14 +19,24 @@ echo "REMOVE THIS LINE ONCE CUSTOMISATION IS COMPLETE"; exit 9;
 # 
 # Very few things here are actually required, and those that are are clearly 
 # marked. Root access is available via the 'sudo' command.
+# 
+# You can customise variables within this script by setting up a .continuousrc file:
+# 
+# https://continuous.io/docs/customising/
+
+
 
 # The directory where the bootstrap has downloaded files to
 # (including where this script is located)
 SCRIPT_DIR="/tmp/cisetup"
 
+
+
 ####################
 ### SYSTEM SETUP ###
 ####################
+
+echo "[INFO] The server is being configured (`lsb_release -sd` `lsb_release -sc` `uname -m`)"
 
 # REQUIRED: Load the default values in
 . ~/.bash_profile
@@ -43,18 +53,18 @@ curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservice
 
 # Check we are running as the expected user
 if [ $USER != $CI_USER ]; then
-    echo "Script must be run as the user defined by CI_USER ($CI_USER)" >&2
+    echo "[ERROR] Script must be run as the user defined by CI_USER ($CI_USER)" >&2
     exit 1
 fi
 
 # Set the timezone
-if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
-    echo "Timezone '$TIMEZONE' could not be found"  >&2
-fi
-
 if [ "$TIMEZONE" ]; then
-    sudo su -c "echo $TIMEZONE > /etc/timezone"
-    sudo dpkg-reconfigure --frontend noninteractive tzdata 
+    if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
+        echo "[WARNING] Timezone '$TIMEZONE' could not be found. Timezone will not be set."  >&2
+    else
+        sudo su -c "echo $TIMEZONE > /etc/timezone"
+        sudo dpkg-reconfigure --frontend noninteractive tzdata 
+    fi
 fi
 
 # Update apt
@@ -78,6 +88,8 @@ done
 ##############################
 ### SETUP YOUR ENVIRONMENT ###
 ##############################
+
+echo "[INFO] Your project is now being loaded from source control"
 
 # Setup the SSH agent
 echo "eval \`ssh-agent -s\` > /dev/null" >> ~/.bash_profile
@@ -123,9 +135,14 @@ get_from_git() {
 # Pull the code from git, putting it into the user's home dir
 get_from_git
 
+echo "[INFO] The environment is now being configured"
+
 # RECOMMENDED: load in the .continuousrc file (if the repo contained one)
 if [ -e ~/.continuousrc ]; then
+    echo "[INFO] A .continuousrc file was found, loading it in"
     . ~/.continuousrc
+else
+    echo "[INFO] No .continuousrc file was found, so it will not be loaded (this is okay!)"
 fi
 
 # RECOMMENDED: Install any extra packages that are specified in .continuousrc
@@ -152,7 +169,7 @@ fi
 # REQUIRED: Let continuous know that we are going to run the tests now
 curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
 
-
+echo "[INFO] Running your tests"
 
 
 
@@ -171,3 +188,4 @@ curl -d "status=done&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build
 # REQUIRED: A simple was to ensure the setup script finished
 touch /tmp/passed
 
+echo "[INFO] All done"

@@ -3,7 +3,7 @@
 # skeleton server template.
 
 # You can specify any values in here that will be needed by 
-# your customised build script.
+# your customised setup script.
 
 # A space separated list of extra packages to be installed. 
 # This will be passed to the system package manager, normally apt-get.

@@ -1,8 +1,37 @@
 #!/bin/bash -e
 
+# The following variables are available to you
+# (values are examples only)
+# 
+# TIMEZONE="UTC"                                        # The timezone this server should be given
+# CI_USER="ci"                                          # The user to setup and run the tests as 
+#                                                       # (although you are free to ignore this)
+# 
+# GIT_URI="git://github.com/andymccurdy/redis-py.git"   # The Git URL for this project
+# GIT_PK_FILE="git.pk"                                  # The Git PK file location
+# GIT_BRANCH="master"                                   # The Git branch to use
+# BUILD_ID="123"                                        # The continuous build ID
+# BUILD_SECRET="aaabbbcccdddeeefff111222333"            # The continuous build secret
+# BUNDLE_ROOT_URL="https://continuous.io                # The root URL to perform callbacks to
+# 
+# 
+# Very few things here are actually required, and those that are are clearly 
+# marked. Root access is available via the 'sudo' command.
+# 
+# You can customise variables within this script by setting up a .continuousrc file:
+# 
+# https://continuous.io/docs/customising/
+
+
+
+# The directory where the bootstrap has downloaded files to
+# (including where this script is located)
 SCRIPT_DIR="/tmp/cisetup"
 
-PIP_REQUIREMENTS="requirements.pip" # A sensible default
+# A sensible default location in which to look for any pip requirements
+PIP_REQUIREMENTS="requirements.pip"
+
+
 
 ### SYSTEM SETUP ###
 
@@ -18,20 +47,22 @@ set -x
 # Let continuous know that we configuring the instance now
 curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/"
 
+echo "[INFO] The server is being configured (`lsb_release -sd` `lsb_release -sc` `uname -m`)"
+
 # Check we are running as the expected user
 if [ $USER != $CI_USER ]; then
-    echo "Script must be run as the user defined by CI_USER ($CI_USER)" >&2
+    echo "[ERROR] Script must be run as the user defined by CI_USER ($CI_USER)" >&2
     exit 1
 fi
 
 # Set the timezone
-if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
-    echo "Timezone '$TIMEZONE' could not be found"  >&2
-fi
-
 if [ "$TIMEZONE" ]; then
-    sudo su -c "echo $TIMEZONE > /etc/timezone"
-    sudo dpkg-reconfigure --frontend noninteractive tzdata 
+    if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
+        echo "[WARNING] Timezone '$TIMEZONE' could not be found. Timezone will not be set."  >&2
+    else
+        sudo su -c "echo $TIMEZONE > /etc/timezone"
+        sudo dpkg-reconfigure --frontend noninteractive tzdata 
+    fi
 fi
 
 # Update apt
@@ -54,6 +85,8 @@ done
 mkdir -p ~/.ssh
 
 ### PYTHON SETUP ###
+
+echo "[INFO] Your project is now being loaded from source control"
 
 # Setup the SSH agent
 echo "eval \`ssh-agent -s\` > /dev/null" >> ~/.bash_profile
@@ -94,6 +127,8 @@ get_from_git() {
 
 get_from_git
 
+echo "[INFO] The Python environment is now being configured"
+
 # pip & virtualenv
 sudo apt-get -y -q install python-setuptools python-pip
 sudo pip install -q virtualenv distribute
@@ -110,7 +145,10 @@ echo "export PYTHONPATH=/home/$CI_USER/lib:\$PYTHONPATH" >> ~/.bash_profile
 
 ### Load in the .continuousrc file (if present)
 if [ -e ~/.continuousrc ]; then
+    echo "[INFO] A .continuousrc file was found, loading it in"
     . ~/.continuousrc
+else
+    echo "[INFO] No .continuousrc file was found, so it will not be loaded (this is okay!)"
 fi
 
 # Install any extra packages that are required
@@ -131,6 +169,8 @@ fi
 # Make sure unittest-continuous is installed
 pip install -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
 
+echo "[INFO] Trying to determine how best to run your tests"
+
 # How are we going to run our tests?
 if [ ! "$TEST_COMMAND" ]; then
     TEST_COMMAND=`find /home/$CI_USER . -maxdepth 3 \( -iregex '.*/tests/.*tests.py' -or -iregex '.*/run_?test.*' \) -and -type f | head -n1`
@@ -144,14 +184,23 @@ if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
     MANAGE_COMMAND=`find /home/$CI_USER -maxdepth 3 -name "manage.py" | head -n1`
 fi
 
+# Let's see if setuptools has a chance of running these tests
+if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" && -f setup.py && `grep "test_suite" setup.py` ]]; then
+    TEST_COMMAND="python /home/$CI_USER/setup.py test"
+    INSTALL_TO="/home/$CI_USER/setup.py"
+fi
+
 if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
-    echo "Could not auto-determine a value for MANAGE_COMMAND or TEST_COMMAND. Consider setting it manually in your .continuousrc file."
+    echo "[ERROR] Could not auto-determine a value for MANAGE_COMMAND or TEST_COMMAND. Consider setting it manually in your .continuousrc file."
     exit 2
 fi
 
 if [ ! "$TEST_COMMAND" ]; then
+    echo "[INFO] A manage.py file was found at '$MANAGE_COMMAND'. Assuming this is a Django project."
     TEST_COMMAND="python $MANAGE_COMMAND test"
 fi
+
+echo "[INFO] Running your test with the command: $TEST_COMMAND"
 
 ### Now run the tests
 
@@ -165,9 +214,17 @@ if [ ! "$INSTALL_TO" ]; then
     done
 fi
 
+install_setup_code() {
+    code="import unittest_continuous; unittest_continuous.setup()"
+    tmpfile="/tmp/$RANDOM"
+    awk -v text="$code" '!/^#/ && !p {print text; p=1} 1' $INSTALL_TO > $tmpfile
+    mv $tmpfile $INSTALL_TO
+}
+
+echo "[INFO] Installing the Continuous testing code to $INSTALL_TO"
+
 # Install the setup code
-echo "" >> $INSTALL_TO
-echo "import unittest_continuous; unittest_continuous.setup()" >> $INSTALL_TO
+install_setup_code
 
 # Now get a list of apps to test (if we are using Django's manage command)
 if [ "$MANAGE_COMMAND" ]; then
@@ -180,6 +237,8 @@ if [ "$MANAGE_COMMAND" ]; then
             let i=$i+1
         done
     fi
+    
+    echo "[INFO] As this is a Django project, we will tests these apps: $APPS"
 fi
 
 # Let continuous know that we are going to run the tests now
@@ -191,12 +250,23 @@ export BUILD_SECRET=$BUILD_SECRET
 if [ "$DJANGO_SETTINGS_MODULE" ]; then
 	SETTINGS="--settings $DJANGO_SETTINGS_MODULE"
 fi
-$TEST_COMMAND $SETTINGS $APPS | tee /tmp/testresults.log
+RUN="$TEST_COMMAND $SETTINGS $APPS"
+
+echo "[INFO] Tests are now being run with the command: $RUN"
+
+$RUN | tee /tmp/testresults.log
+
+echo "[INFO] Tests have been run"
 
 # send the XML results to continuous
-if [ -e "/home/$CI_USER/results.xml" ]; then
+if [ -s "/home/$CI_USER/results.xml" ]; then
+    echo "[INFO] Results found in /home/$CI_USER/results.xml. Send the data to Continuous now."
+    
     # Use '--data-binary' to ensure unix new lines don't get ignored
     curl --data-binary @/home/$CI_USER/results.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
+else
+    echo "[ERROR] No results found at /home/$CI_USER/results.xml. Nothing to send back to Continuous."
+    exit 3
 fi
 
 # Let continuous know that we are done
@@ -205,5 +275,4 @@ curl -d "status=done&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build
 # A simple was of ensure that the setup script finished
 touch /tmp/passed
 
-sudo shutdown -c || true
-sudo shutdown -h +3
+echo "[INFO] Complete!"
