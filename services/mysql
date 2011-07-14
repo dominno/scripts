@@ -1,15 +1,9 @@
 #!/bin/bash -ex
 
-USER="continuous"
-PASS="continuous"
-DB="continuous"
-
 export DEBIAN_FRONTEND=noninteractive
 apt-get -y install mysql-server mysql-client libmysqlclient15-dev
 
 # MySQL should now be running
 
-# Setup premissions
-mysqladmin -u root password $PASS
-mysqladmin -uroot -p$PASS create $DB
-echo "GRANT ALL ON *.* TO $USER@localhost IDENTIFIED BY '$PASS'" | mysql -uroot -p$PASS $DB
+# We could set the MySQL root password here, but for simplicity
+# we leave it blank (no external access is available anyway)
