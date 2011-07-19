@@ -133,8 +133,15 @@ echo "[INFO] The Python environment is now being configured"
 sudo apt-get -y -q install python-setuptools python-pip
 sudo pip install -q virtualenv distribute
 
-virtualenv --no-site-packages env_test
-echo ". env_test/bin/activate" >> ~/.bash_profile
+# Keep the environment outside of the project as infinite
+# recursion errors can arise in some cases
+ENV_DIR="/var/env_test"
+
+sudo mkdir $ENV_DIR
+sudo chown $CI_USER:$CI_USER $ENV_DIR
+
+virtualenv --no-site-packages $ENV_DIR
+echo ". $ENV_DIR/bin/activate" >> ~/.bash_profile
 echo "export PIP_REQUIRE_VIRTUALENV=true" >> ~/.bash_profile
 echo "export PIP_RESPECT_VIRTUALENV=true" >> ~/.bash_profile
 
@@ -158,16 +165,16 @@ fi
 
 # Setup the requirements if a file was specified
 if [ -e "$PIP_REQUIREMENTS" ]; then
-    pip install -E env_test -r $PIP_REQUIREMENTS
+    pip install -E $ENV_DIR -r $PIP_REQUIREMENTS
 fi
 
 # Run pip install if setup.py is present
 if [ -e "/home/$CI_USER/setup.py" ]; then
-    pip install -E env_test "/home/$CI_USER"
+    pip install -E $ENV_DIR "/home/$CI_USER"
 fi
 
 # Make sure unittest-continuous is installed
-pip install -E env_test -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
+pip install -E $ENV_DIR -e "git+git://github.com/continuous/unittest-continuous.git#egg=unittest-continuous"
 
 echo "[INFO] Trying to determine how best to run your tests"
 
@@ -175,7 +182,8 @@ echo "[INFO] Trying to determine how best to run your tests"
 if [ ! "$TEST_COMMAND" ]; then
     TEST_COMMAND=`find /home/$CI_USER . -maxdepth 3 \( -iregex '.*/tests/.*tests.py' -or -iregex '.*/run_?test.*' \) -and -type f | head -n1`
     if [[ "$TEST_COMMAND" && ! -x "$TEST_COMMAND" ]]; then
-        TEST_COMMAND="python $TEST_COMMAND"
+        chmod +x $TEST_COMMAND
+        TEST_COMMAND="$TEST_COMMAND"
     fi
 fi
 
@@ -186,7 +194,8 @@ fi
 
 # Let's see if setuptools has a chance of running these tests
 if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" && -f setup.py && `grep "test_suite" setup.py` ]]; then
-    TEST_COMMAND="python /home/$CI_USER/setup.py test"
+    chmod +x /home/$CI_USER/setup.py
+    TEST_COMMAND="/home/$CI_USER/setup.py test"
     INSTALL_TO="/home/$CI_USER/setup.py"
 fi
 
@@ -253,9 +262,9 @@ if [ "$DJANGO_SETTINGS_MODULE" ]; then
 fi
 
 if [ ! "$DISABLE_COVERAGE" ]; then
-    pip install -E env_test coverage
+    pip install --upgrade -E $ENV_DIR coverage
     if [ ! "$COVERAGE_COMMAND" ]; then
-        COVERAGE_COMMAND='coverage run --omit "env*" --'
+        COVERAGE_COMMAND='coverage run --omit "*/env_*" --'
     fi
 fi
 
