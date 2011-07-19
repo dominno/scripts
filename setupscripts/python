@@ -197,7 +197,8 @@ fi
 
 if [ ! "$TEST_COMMAND" ]; then
     echo "[INFO] A manage.py file was found at '$MANAGE_COMMAND'. Assuming this is a Django project."
-    TEST_COMMAND="python $MANAGE_COMMAND test"
+    chmod +x $MANAGE_COMMAND
+    TEST_COMMAND="$MANAGE_COMMAND test"
 fi
 
 echo "[INFO] Running your test with the command: $TEST_COMMAND"
@@ -250,7 +251,15 @@ export BUILD_SECRET=$BUILD_SECRET
 if [ "$DJANGO_SETTINGS_MODULE" ]; then
 	SETTINGS="--settings $DJANGO_SETTINGS_MODULE"
 fi
-RUN="$TEST_COMMAND $SETTINGS $APPS"
+
+if [ ! "$DISABLE_COVERAGE" ]; then
+    pip install -E env_test coverage
+    if [ ! "$COVERAGE_COMMAND" ]; then
+        COVERAGE_COMMAND='coverage run --omit "env*" --'
+    fi
+fi
+
+RUN="$COVERAGE_COMMAND $TEST_COMMAND $SETTINGS $APPS"
 
 echo "[INFO] Tests are now being run with the command: $RUN"
 
@@ -267,6 +276,81 @@ if [ -s "/home/$CI_USER/results.xml" ]; then
 else
     echo "[ERROR] No results found at /home/$CI_USER/results.xml. Nothing to send back to Continuous."
     exit 3
+fi
+
+# Dump the coverage XML results
+if [ ! "$DISABLE_COVERAGE" ]; then
+    coverage xml -o coverage.xml
+fi
+
+# Send the coverage results back to continuous
+if [ -f "coverage.xml" ]; then
+    echo "[INFO] Code coverage data found in /home/$CI_USER/coverage.xml. Send the data to Continuous now."
+    
+    # Use '--data-binary' to ensure unix new lines don't get ignored.
+    # This call returns a list of files to send to continuous (for showing coverage results only)
+    curl --data-binary @/home/$CI_USER/coverage.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/coverage/?secret=$BUILD_SECRET > /tmp/coveragefiles.txt
+    
+    # Send the source files for continuous
+    if [ ! "$DISABLE_SENDING_SOURCE" ]; then
+        cat /tmp/coveragefiles.txt | xargs tar -c > /tmp/coveragefiles.tar
+        curl --data-binary @/tmp/coveragefiles.tar $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/coverage-source/?secret=$BUILD_SECRET
+    fi
+else
+    if [ ! "$DISABLE_COVERAGE" ]; then
+        echo "[WARNING] No code coverage results found at /home/$CI_USER/coverage.xml. Code coverage reports will not be available."
+    else
+        echo "[INFO] Code coverage reporting has been disabled by 'DISABLE_COVERAGE'. Skipping."
+    fi
+fi
+
+run_js_hint() {
+    
+    if [ ! "$JS_DIR" ]; then
+        JS_DIR="media"
+        if [ ! -f "$JS_DIR"]; then
+            JS_DIR=`find . -maxdepth 2 -name "media" -type d | head -n 1`
+        fi
+    fi
+    
+    if [ ! "$JS_DIR" ]; then
+        echo "[WARNING] Could not determine a value for JS_DIR. Consider setting it in your .continuousrc file."
+        return 0
+    fi
+    
+    if [ ! "$JSLINT_COMMAND" ]; then
+        JSLINT_COMMAND="jshint"
+    fi
+    
+    files=`find . -name "*.js" | grep -v "min.js" | grep -v "/vendor/" | grep -v "/.npm/" | grep -v "/env*"`
+    
+    if [ "$files" ]; then
+        echo "[INFO] Found `echo \"$files\" | wc -w` JavaScript files in $JS_DIR"
+    else
+        echo "[WARNING] No JavaScript files found in $JS_DIR. Consider setting JS_DIR."
+        return 0
+    fi
+    
+    # Setup node-jshint and run it
+    echo "[INFO] Installing nodejs, npm and jshint"
+    sudo apt-get -y install python-software-properties
+    sudo add-apt-repository ppa:chris-lea/node.js
+    sudo apt-get update
+    sudo apt-get install -y nodejs
+
+    curl http://npmjs.org/install.sh | sudo clean=no sh
+
+    sudo npm install -g jshint
+    
+    files=`echo "$files" | xargs`
+    $JSLINT_COMMAND $files --jslint-reporter > jslint.xml
+    curl --data-binary @jslint.xml $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/jslint/?secret=$BUILD_SECRET > /dev/null
+}
+
+if [ ! "$DISABLE_JSLINT" ]; then
+    run_js_hint
+else
+    echo "[INFO] JSLint has been disabled by 'DISABLE_JSLINT'. Skipping."
 fi
 
 # Let continuous know that we are done
