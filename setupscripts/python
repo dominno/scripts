@@ -272,7 +272,7 @@ RUN="$COVERAGE_COMMAND $TEST_COMMAND $SETTINGS $APPS"
 
 echo "[INFO] Tests are now being run with the command: $RUN"
 
-$RUN | tee /tmp/testresults.log
+eval "$RUN" | tee /tmp/testresults.log
 
 echo "[INFO] Tests have been run"
 
