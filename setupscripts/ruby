@@ -22,6 +22,15 @@
 # 
 # https://continuous.io/docs/customising/
 
+# CODE COVERAGAE NOTE
+# 
+# This script is currently in beta and code coverage reporting is not 
+# yet supported. This is something we are working on, but information 
+# on configuring this yourself can be found here:
+# 
+# https://continuous.io/docs/coverage-setup/#setupscript
+# 
+# Any contributions to the core scripts are always warmly received!
 
 
 # The directory where the bootstrap has downloaded files to
