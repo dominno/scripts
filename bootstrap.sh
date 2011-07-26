@@ -7,7 +7,7 @@ shutdown -h +50 &
 
 mkdir -p /tmp/cisetup
 cd /tmp/cisetup
-apt-get install curl
+apt-get -y install curl
 
 # Get the setup script, git PKs etc
 curl --insecure "{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/bundle/?secret={{ build_instance.secret }}" | tar -zx
