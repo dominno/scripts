@@ -1,3 +1,5 @@
+import glob
+
 from distutils.core import setup
 from setuptools import find_packages
 
@@ -16,5 +18,10 @@ setup(
     ],
     
     package_dir={'': 'src'},
-    package_data={"": ["src/*"]}
+    data_files=[
+        ("scripts", ["src/scripts/bootstrap.sh"]),
+        ("continuousrc", glob.glob("src/scripts/continuousrc/*")),
+        ("services", glob.glob("src/scripts/services/*")),
+        ("setupscripts", glob.glob("src/scripts/setupscripts/*")),
+    ]
 )
