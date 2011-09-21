@@ -1,0 +1,11 @@
+#!/bin/bash -ex
+
+# Setup MongoDB
+# http://www.mongodb.org/display/DOCS/Ubuntu+and+Debian+packages
+
+apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
+echo "deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen" >> /etc/apt/sources.list
+apt-get -y update
+apt-get -y install mongodb-10gen
+
+# MongoDB should now be running

@@ -1,0 +1,28 @@
+#!/bin/bash  -ex
+
+REDIS_VERSION="2.2.8"
+
+apt-get -y install build-essential
+
+cd /tmp
+wget http://redis.googlecode.com/files/redis-$REDIS_VERSION.tar.gz
+tar xzf redis-$REDIS_VERSION.tar.gz
+
+cd redis-$REDIS_VERSION
+make
+make install
+
+mkdir -p /etc/redis
+cp redis.conf /etc/redis/6379.conf
+echo "daemonize yes" >> /etc/redis/6379.conf
+echo "pidfile /var/run/redis_6379.pid" >> /etc/redis/6379.conf
+
+sysctl vm.overcommit_memory=1
+
+# install init script
+cp utils/redis_init_script /etc/init.d/redis
+update-rc.d redis defaults
+
+/etc/init.d/redis start
+
+cd ~

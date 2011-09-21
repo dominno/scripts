@@ -1,0 +1,11 @@
+# Example .continuousrc file for use with http://continuous.io
+# This example file has been created for use with a 
+# skeleton server template.
+
+# You can specify any values in here that will be needed by 
+# your customised setup script.
+
+# A space separated list of extra packages to be installed. 
+# This will be passed to the system package manager, normally apt-get.
+# Example: "subversion libjpeg-dev"
+EXTRA_PACKAGES=""

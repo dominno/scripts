@@ -1,0 +1,269 @@
+#!/bin/bash -e
+
+# The following variables are available to you
+# (values are examples only)
+# 
+# TIMEZONE="UTC"                                        # The timezone this server should be given
+# CI_USER="ci"                                          # The user to setup and run the tests as 
+#                                                       # (although you are free to ignore this)
+# 
+# GIT_URI="git://github.com/andymccurdy/redis-py.git"   # The Git URL for this project
+# GIT_PK_FILE="git.pk"                                  # The Git PK file location
+# GIT_BRANCH="master"                                   # The Git branch to use
+# BUILD_ID="123"                                        # The continuous build ID
+# BUILD_SECRET="aaabbbcccdddeeefff111222333"            # The continuous build secret
+# BUNDLE_ROOT_URL="https://continuous.io                # The root URL to perform callbacks to
+# 
+# 
+# Very few things here are actually required, and those that are are clearly 
+# marked. Root access is available via the 'sudo' command.
+# 
+# You can customise variables within this script by setting up a .continuousrc file:
+# 
+# https://continuous.io/docs/customising/
+
+# CODE COVERAGAE NOTE
+# 
+# This script is currently in beta and code coverage reporting is not 
+# yet supported. This is something we are working on, but information 
+# on configuring this yourself can be found here:
+# 
+# https://continuous.io/docs/coverage-setup/#setupscript
+# 
+# Any contributions to the core scripts are always warmly received!
+
+
+# The directory where the bootstrap has downloaded files to
+# (including where this script is located)
+SCRIPT_DIR="/tmp/cisetup"
+
+
+
+####################
+### SYSTEM SETUP ###
+####################
+
+echo "[INFO] The server is being configured (`lsb_release -sd` `lsb_release -sc` `uname -m`)"
+
+# REQUIRED: Load the default values in
+. ~/.bash_profile
+
+# REQUIRED: Simple authentication for the benefit of the remote logger
+echo "$BUILD_ID:$BUILD_SECRET:"
+
+# RECOMMENDED: Start with verbose (debugging) output
+# (for easy debugging in the web UI)
+set -x
+
+# REQUIRED: Let continuous know that we configuring the instance now
+curl -d "status=configuring&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/"
+
+# Check we are running as the expected user
+if [ $USER != $CI_USER ]; then
+    echo "[ERROR] Script must be run as the user defined by CI_USER ($CI_USER)" >&2
+    exit 1
+fi
+
+# Set the timezone
+if [ "$TIMEZONE" ]; then
+    if [ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]; then
+        echo "[WARNING] Timezone '$TIMEZONE' could not be found. Timezone will not be set."  >&2
+    else
+        sudo su -c "echo $TIMEZONE > /etc/timezone"
+        sudo dpkg-reconfigure --frontend noninteractive tzdata 
+    fi
+fi
+
+# Update apt
+sudo apt-get -y -q update
+
+# Accept ssh fingerprints (i.e. for when cloning Git repositories)
+sudo su -c 'echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config'
+
+# Install some packages which we will probably need
+sudo apt-get -y -q install git-core build-essential
+
+# RECOMMENDED: Install services the user has selected
+# (not doing this will cause the service selection for this project to 
+# be ignored)
+for serviceScript in `ls $SCRIPT_DIR/service-*`; do
+    echo "Running service script $serviceScript"
+    sudo chmod +x $serviceScript
+    sudo $serviceScript
+done
+
+##############################
+### SETUP YOUR ENVIRONMENT ###
+##############################
+
+echo "[INFO] Your project is now being loaded from source control"
+
+# Setup the SSH agent
+echo "eval \`ssh-agent -s\` > /dev/null" >> ~/.bash_profile
+. ~/.bash_profile
+
+# Get source (git/svn/tar.gz?)
+
+get_from_git() {
+    # A useful subroutine for pulling a git repo into the home directory
+    
+    local GIT_PATH="/tmp/git-$RANDOM"
+    
+    if [ "$GIT_PK_FILE" ]; then
+        mkdir -p ~/.ssh
+        sudo cp $SCRIPT_DIR/$GIT_PK_FILE /home/$CI_USER/.ssh/id_rsa
+        sudo chmod 600 /home/$CI_USER/.ssh/id_rsa
+        sudo chown $CI_USER:$CI_USER /home/$CI_USER/.ssh/id_rsa
+    fi
+    
+    # Do the close
+    git clone $GIT_URI $GIT_PATH
+    
+    # move the .git directory into the user's home dir
+    mv $GIT_PATH/.git ~
+    
+    # now get the files back (thereby populating the home dir with the files)
+    git reset --hard HEAD
+    
+    # get the branch we need
+    (git branch | grep $GIT_BRANCH)  > /dev/null || git branch $GIT_BRANCH origin/$GIT_BRANCH
+    
+    # checkout the branch
+    git checkout $GIT_BRANCH
+    
+    # pull any updates
+    git pull
+    
+    # setup the submodules (if any)
+    git submodule init
+    git submodule update
+}
+
+# Pull the code from git, putting it into the user's home dir
+get_from_git
+
+echo "[INFO] The environment is now being configured"
+
+# RECOMMENDED: load in the .continuousrc file (if the repo contained one)
+if [ -e ~/.continuousrc ]; then
+    echo "[INFO] A .continuousrc file was found, loading it in"
+    . ~/.continuousrc
+else
+    echo "[INFO] No .continuousrc file was found, so it will not be loaded (this is okay!)"
+fi
+
+# RECOMMENDED: Install any extra packages that are specified in .continuousrc
+if [ "$EXTRA_PACKAGES" ]; then
+    sudo apt-get -y install $EXTRA_PACKAGES
+fi
+
+# Setup Ruby & Ruby Gems
+sudo apt-get -y install ruby rubygems rdoc libopenssl-ruby
+echo "gem: --no-ri --no-rdoc" >> ~/.gemrc
+
+# Setup commonly needed packages
+PACKAGES_LIBXML="libxml2 libxml2-dev libxslt1-dev"
+PACKAGES_SQLITE="sqlite3 libsqlite3-dev"
+PACKAGES_MYSQL="libmysqlclient-dev"
+PACKAGES_MISC="libcurl4-gnutls-dev"
+sudo apt-get -y install $PACKAGES_LIBXML $PACKAGES_SQLITE $PACKAGES_MYSQL $PACKAGES_MISC
+
+export PATH=/var/lib/gems/1.8/bin:$PATH
+echo "export PATH=/var/lib/gems/1.8/bin:$PATH" >> ~/.bash_profile
+
+sudo gem install bundler
+
+if [ ! -s ~/Gemfile ]; then
+    echo 'source "http://rubygems.org"' >> ~/Gemfile
+fi
+
+install_setup_code() {
+    code="require 'rubygems'
+require 'ci/reporter/rake/test_unit'
+require 'ci/reporter/rake/rspec'
+require 'ci/reporter/rake/cucumber'"
+    tmpfile="/tmp/$RANDOM"
+    awk -v text="$code" '!/^#/ && !p {print text; p=1} 1' $1 > $tmpfile
+    mv $tmpfile $1
+    
+    echo "gem 'ci_reporter'" >> ~/Gemfile
+}
+
+install_setup_code $HOME/Rakefile
+
+# make sure we are installing rake as well
+if [ ! `grep "rake" ~/Gemfile` ]; then
+    echo "gem 'rake'" >> ~/Gemfile
+fi
+
+bundle install
+
+# Copy any example config files into position
+if [ -d "config" ]; then
+    for from in `find config -name "*.example"`; do
+        to=`echo "$from" | sed -e 's/\(.*\).example/\1/'`
+        if [ ! -f "$to" ]; then
+            cp $from $to
+        fi
+    done
+fi
+
+rake_tasks=`rake -T`
+
+rake_task() {
+    task=$1
+    if [[ $rake_tasks == *"$task"* ]]; then
+        bundle exec rake $task
+    fi
+}
+
+
+# Run these tasks only if we have them
+rake_task db:setup
+rake_task db:create:all
+rake_task db:migrate
+
+#####################
+### RUN THE TESTS ###
+#####################
+
+# REQUIRED: Let continuous know that we are going to run the tests now
+curl -d "status=running&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
+
+echo "[INFO] Running your tests"
+
+export CI_REPORTS="$HOME/cireports"
+
+send_results() {
+    RESULT_DIR=$1
+    RESULT_FILE="/tmp/ciresult-$RANDOM"
+    for f in `find $RESULT_DIR -iname "*.xml"`; do
+        cat $f >> $RESULT_FILE
+        echo "---------- NEXT ----------" >> $RESULT_FILE
+    done
+    
+    curl --data-binary @$RESULT_FILE $BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/xml/?secret=$BUILD_SECRET > /dev/null
+}
+
+# REQUIRED: Post the XML output back to continuous for parsing
+
+set +e
+bundle exec rake ci:setup:testunit test
+send_results $CI_REPORTS
+
+bundle exec rake ci:setup:rspec spec
+send_results $CI_REPORTS
+
+bundle exec rake ci:setup:cucumber features
+send_results $CI_REPORTS
+
+set -e
+
+
+# REQUIRED: Let continuous know that we are done
+curl -d "status=done&secret=$BUILD_SECRET" "$BUNDLE_ROOT_URL/buildservices/build/$BUILD_ID/update-status/" > /dev/null
+
+# REQUIRED: A simple was to ensure the setup script finished
+touch /tmp/passed
+
+echo "[INFO] All done"
