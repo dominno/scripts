@@ -16,8 +16,17 @@ setup(
         "Intended Audience :: Developers",
         "Natural Language :: English",
     ],
+    packages=["continuous_scripts"],
     
-    package_dir={'': 'src'}
+    package_data={
+        "continuous_scripts": [
+            "scripts/bootstrap.sh", 
+            "scripts/continuousrc/*",
+            "scripts/services/*",
+            "scripts/setupscripts/*",
+        ]
+    },
+    
     # data_files=[
     #         ("scripts", ["src/scripts/bootstrap.sh"]),
     #         ("continuousrc", glob.glob("src/scripts/continuousrc/*")),
@@ -25,5 +34,6 @@ setup(
     #         ("setupscripts", glob.glob("src/scripts/setupscripts/*")),
     #     ]
     # scripts=glob.glob("src/scripts/**")
-    # data_files=["src/scripts/bootstrap.sh", "src/scripts/continuousrc/python"]
+    # data_files=["scripts/bootstrap.sh", "scripts/continuousrc/python"]
+    include_package_data=True
 )
