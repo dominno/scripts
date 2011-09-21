@@ -2,6 +2,9 @@
 
 {% autoescape off %}
 
+# Start logging everything
+exec &> /var/log/continuous.log
+
 # Schedule a shutdown in 50 minutes to be on the safe side
 shutdown -h +50 &
 
@@ -11,6 +14,12 @@ apt-get -y install curl
 
 # Get the setup script, git PKs etc
 curl --insecure "{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/bundle/?secret={{ build_instance.secret }}" | tar -zx
+
+LOG_POST_URL="{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/script-output/?secret={{ build_instance.secret }}"
+
+# Start the log being sent back to continuous
+/tmp/cisetup/logmonitor.sh $LOG_POST_URL &
+LOG_MONITOR_PID=$!
 
 export CI_USER="ci"
 
@@ -39,15 +48,16 @@ chown $CI_USER:$CI_USER /var/log/continuous.log
 
 rm -f /tmp/passed
 
-su -c "/tmp/cisetup/startup_script 2>&1 | tee /var/log/continuous.log | nc -w 600 {{ receiver_host }} 8002" - $CI_USER
+su -c /tmp/cisetup/startup_script - $CI_USER
 
 if [ ! -f /tmp/passed ]; then
     echo "Setup script failed"
     curl -d "status=dead&secret={{ build_instance.secret }}" "{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/update-status/"
 fi
 
-# Send the log back to continuous
-curl --data-binary @/var/log/continuous.log "{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ build.id }}/script-output/?secret={{ build_instance.secret }}"
+# Stop the log monitoring and send final the log back to continuous
+kill $LOG_MONITOR_PID
+curl --data-binary @/var/log/continuous.log $LOG_POST_URL
 
 # Shutdown the server in a few minutes
 # (allows for login if necessary)
