@@ -1,2 +1,2 @@
 include LICENSE README.textile
-graft scripts
+recursive-include scripts *
