@@ -26,14 +26,5 @@ setup(
             "scripts/setupscripts/*",
         ]
     },
-    
-    # data_files=[
-    #         ("scripts", ["src/scripts/bootstrap.sh"]),
-    #         ("continuousrc", glob.glob("src/scripts/continuousrc/*")),
-    #         ("services", glob.glob("src/scripts/services/*")),
-    #         ("setupscripts", glob.glob("src/scripts/setupscripts/*")),
-    #     ]
-    # scripts=glob.glob("src/scripts/**")
-    # data_files=["scripts/bootstrap.sh", "scripts/continuousrc/python"]
     include_package_data=True
 )
