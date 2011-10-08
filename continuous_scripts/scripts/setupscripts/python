@@ -226,9 +226,14 @@ fi
 
 install_setup_code() {
     code="import unittest_continuous; unittest_continuous.setup()"
-    tmpfile="/tmp/$RANDOM"
-    awk -v text="$code" '!/^#/ && !p {print text; p=1} 1' $INSTALL_TO > $tmpfile
-    mv $tmpfile $INSTALL_TO
+    if [ -s "$INSTALL_TO" ]; then
+        tmpfile="/tmp/$RANDOM"
+        awk -v text="$code" '!/^#/ && !p {print text; p=1} 1' $INSTALL_TO > $tmpfile
+        mv $tmpfile $INSTALL_TO
+    else
+        echo "$code" > $INSTALL_TO
+    fi
+    
 }
 
 echo "[INFO] Installing the Continuous testing code to $INSTALL_TO"
