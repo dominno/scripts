@@ -190,7 +190,7 @@ fi
 # Let's see if we have a manage.py command (for Django projects)
 if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
     if which "django-admin.py"; then
-        MANAGE_COMMAND="django-admin.py"
+        MANAGE_COMMAND=`which django-admin.py`
     else
         MANAGE_COMMAND=`find /home/$CI_USER -maxdepth 3 -name "manage.py" | head -n1`
     fi
