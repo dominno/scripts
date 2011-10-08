@@ -189,7 +189,11 @@ fi
 
 # Let's see if we have a manage.py command (for Django projects)
 if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
-    MANAGE_COMMAND=`find /home/$CI_USER -maxdepth 3 -name "manage.py" | head -n1`
+    if which "django-admin.py"; then
+        MANAGE_COMMAND="django-admin.py"
+    else
+        MANAGE_COMMAND=`find /home/$CI_USER -maxdepth 3 -name "manage.py" | head -n1`
+    fi
 fi
 
 # Let's see if setuptools has a chance of running these tests
