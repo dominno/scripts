@@ -22,6 +22,11 @@ LOG_POST_URL="{{ web_host_protocol }}://{{ web_host }}/buildservices/build/{{ bu
 LOG_MONITOR_PID=$!
 
 export CI_USER="ci"
+if [ `uname -m` == 'x86_64' ]; then
+    export ARCH_BITS="64"
+else
+    export ARCH_BITS="32"
+fi
 
 # Create the user and allow them to sudo
 useradd -U -m -d /home/$CI_USER -s /bin/bash $CI_USER
