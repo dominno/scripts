@@ -209,8 +209,14 @@ if [[ ! "$MANAGE_COMMAND" && ! "$TEST_COMMAND" ]]; then
 fi
 
 if [ ! "$TEST_COMMAND" ]; then
-    echo "[INFO] A manage.py file was found at '$MANAGE_COMMAND'. Assuming this is a Django project."
-    chmod +x $MANAGE_COMMAND
+    echo "[INFO] A Django command was found at '$MANAGE_COMMAND'. Assuming this is a Django project."
+    
+    # If we can see this file and it is not executable
+    if [[ -f "$MANAGE_COMMAND" && ! -x "$MANAGE_COMMAND" ]]; then
+        # ... then make it executable
+        chmod +x $MANAGE_COMMAND
+    fi
+    
     TEST_COMMAND="$MANAGE_COMMAND test"
 fi
 
